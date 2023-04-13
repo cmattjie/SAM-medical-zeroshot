@@ -25,7 +25,7 @@
         "MSD_Pancreas": "/mnt/B-SSD/maltamed/datasets/processed/MSD_Pancreas",
         "MSD_Spleen": "/mnt/B-SSD/maltamed/datasets/processed/MSD_Spleen",
         "ISIC": "/mnt/B-SSD/maltamed/datasets/2D/ISIC",
-        "CXR_kaggle": "/mnt/B-SSD/maltamed/datasets/2D/CXR_kaggle"
+        "CXRkaggle": "/mnt/B-SSD/maltamed/datasets/2D/CXR_kaggle"
     },
 
     "sam_checkpoint": {
