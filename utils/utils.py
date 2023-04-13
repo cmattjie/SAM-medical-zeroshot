@@ -69,8 +69,8 @@ def random_coordinate(mask):
     return input_point, np.array([1])
 
 def merge_masks(mask_list):
-    masks_rc_list, masks_rs3_list, masks_rs5_list, masks_cp_list, masks_bb_list = mask_list
-    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb = [], [], [], [], []
+    masks_rc_list, masks_rs3_list, masks_rs5_list, masks_cp_list, masks_bb_list, masks_bbs_list = mask_list
+    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs = [], [], [], [], [], []
     if len(masks_rc_list) > 1:
         for i in range(len(masks_rc_list[0])): #i=3
             masks_rc.append(np.logical_or(masks_rc_list[0][i], masks_rc_list[1][i]))
@@ -78,12 +78,14 @@ def merge_masks(mask_list):
             masks_rs5.append(np.logical_or(masks_rs5_list[0][i], masks_rs5_list[1][i]))
             masks_cp.append(np.logical_or(masks_cp_list[0][i], masks_cp_list[1][i]))
             masks_bb.append(np.logical_or(masks_bb_list[0][i], masks_bb_list[1][i]))
+            masks_bbs.append(np.logical_or(masks_bbs_list[0][i], masks_bbs_list[1][i]))
             
         masks_rc=np.stack(masks_rc, axis=0)
         masks_rs3=np.stack(masks_rs3, axis=0)
         masks_rs5=np.stack(masks_rs5, axis=0)
         masks_cp=np.stack(masks_cp, axis=0)
         masks_bb=np.stack(masks_bb, axis=0)
+        masks_bbs=np.stack(masks_bbs, axis=0)
 
     else:
         masks_rc = masks_rc_list[0]
@@ -91,8 +93,9 @@ def merge_masks(mask_list):
         masks_rs5 = masks_rs5_list[0]
         masks_cp = masks_cp_list[0]
         masks_bb = masks_bb_list[0]
+        masks_bbs = masks_bbs_list[0]
         
-    return masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb
+    return masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs
 
 def boundbox(mask):
     # Find contours in the mask
@@ -120,6 +123,41 @@ def split_mask(mask, dataset):
         temp_mask = cv2.cvtColor(temp_mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]
         masks.append(temp_mask)
     return masks
+
+def boundbox_similar(mask, img_shape, pos_variation=10, size_variation=10, size_mode="random"):    
+    
+    # Find contours in the mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Get the bounding box of the first contour
+    x, y, w, h = cv2.boundingRect(contours[0])
+    
+    # Create the bounding box coordinates
+    bbox = [x, y, x+w, y+h]
+    
+    # Define the maximum and minimum possible variations for position
+    max_pos_variation = min(pos_variation, x, y, img_shape[1] - (x+w), img_shape[0] - (y+h))
+    
+    # Add random variation to the position of the bounding box's upper left corner
+    new_x = np.clip(x + np.random.randint(-max_pos_variation, max_pos_variation+1), 0, img_shape[1]-w)
+    new_y = np.clip(y + np.random.randint(-max_pos_variation, max_pos_variation+1), 0, img_shape[0]-h)
+    
+    # Calculate the size variation based on the size_mode parameter
+    if size_mode == "bigger":
+        size_var = np.random.randint(0, size_variation+1)
+    elif size_mode == "smaller":
+        size_var = np.random.randint(-size_variation, 1)
+    else:  # Default to "random" if an unsupported mode is provided
+        size_var = np.random.randint(-size_variation, size_variation+1)
+    
+    # Calculate the new width and height with the size variation
+    new_w = np.clip(w + size_var, 1, img_shape[1] - new_x)
+    new_h = np.clip(h + size_var, 1, img_shape[0] - new_y)
+    
+    # Create the similar_bbox coordinates
+    similar_bbox = [new_x, new_y, new_x + new_w, new_y + new_h]
+    
+    return np.array(bbox), np.array(similar_bbox)
 
 def show_points(coords, labels, ax, marker_size=375):
     pos_points = coords[labels==1]

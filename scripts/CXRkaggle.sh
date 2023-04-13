@@ -4,4 +4,4 @@ python3 main_2d.py \
 --model default \
 --gpu 1 \
 --dataset CXRkaggle \
---name CXRkaggle
+--name CXRkaggle_v2
