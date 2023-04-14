@@ -25,13 +25,15 @@
         "MSD_Pancreas": "/mnt/B-SSD/maltamed/datasets/processed/MSD_Pancreas",
         "MSD_Spleen": "/mnt/B-SSD/maltamed/datasets/processed/MSD_Spleen",
         "ISIC": "/mnt/B-SSD/maltamed/datasets/2D/ISIC",
-        "CXRkaggle": "/mnt/B-SSD/maltamed/datasets/2D/CXR_kaggle"
+        "CXRkaggle": "/mnt/B-SSD/maltamed/datasets/2D/CXR_kaggle",
+        "mamo_US": "/mnt/B-SSD/maltamed/datasets/2D/mamo_US",
+        "abdominal_US": "/mnt/B-SSD/maltamed/datasets/2D/abdominal_US"
     },
 
     "sam_checkpoint": {
         "default": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_h.pth",
         "sam": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_h.pth",
-        "vits-h": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_h.pth",
+        "vit-h": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_h.pth",
         "vit-b": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_b.pth",
         "vit-l": "/mnt/B-SSD/maltamed/SAM-zero-shot/segment-anything-main/checkpoints/sam_vit_l.pth"
     },

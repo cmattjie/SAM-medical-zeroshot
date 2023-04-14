@@ -21,10 +21,11 @@ from monai.visualize import plot_2d_or_3d_image
 def get_args():
     parser = argparse.ArgumentParser(description='parameters for evaluating SAM')
     
-    parser.add_argument('--model',              default='default', type=str, help='Model name.')
+    parser.add_argument('--model',              default='default', type=str, help='Model type for SAM')
     parser.add_argument('--dataset',            default='ISIC', type=str, help='dataset')
     parser.add_argument('--gpu',                default=2, type=str, help='GPU Number.')
     parser.add_argument('--name',               default='test', type=str, help='Run name on Tensorboard and savedirs.')
+    parser.add_argument('--variation',          default='default', type=int, help='Variation of bounding box placement.')
     #parser.add_argument('--mask_mode',          default='rnd', type=str, help='Method for sampling points.')
     #parser.add_argument('--n_splits',           default=3, type=int, help='Number of splits to get points of.')
     
@@ -37,21 +38,19 @@ args = get_args()
 dicts = json.load(open('./utils/dicts.json', 'r'))
 board = SummaryWriter(log_dir='./runs/'+args.name)
 
+print(f"Name: {args.name}")
+print(f"Model: {args.model}")
+print(f"Dataset: {args.dataset}")
+
 assert args.dataset in dicts['dataset_processed_path'].keys(), "Dataset not found"
-#assert args.mask_mode in ['rnd', 'split', 'central', 'box'], "Method not found, choose between rnd, 3split, central, box"
 assert args.model in dicts['sam_checkpoint'].keys(), "Model not found"
 
 data_dir = dicts['dataset_processed_path'][args.dataset]
 train_images = sorted(glob.glob(os.path.join(data_dir, "images", "*.*")))
 train_labels = sorted(glob.glob(os.path.join(data_dir, "mask", "*.*")))
+
 data_dicts = [{"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)]
 train_files = data_dicts
-
-# transform = None
-# train_transforms = Compose(
-#     LoadImaged(keys=["image", "label"]),
-#     ScaleIntensityRanged(keys=["image"], a_min=-57, a_max=164, b_min=0, b_max=255, clip=True) if transform =='liver' else Identity(),
-# )
 
 check_ds = Dataset(data=train_files)# transform=train_transforms)
 loader = DataLoader(check_ds, batch_size=1, shuffle=True)#, num_workers=4, shuffle=False)
@@ -60,7 +59,8 @@ sam_checkpoint = dicts['sam_checkpoint'][args.model]
 device = torch.device(f'cuda:{args.gpu}')
 print(device)
 model_type = args.model
-
+#change "-" to "_" to get the model name
+model_type = model_type.replace("-", "_")
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 
@@ -81,9 +81,15 @@ dice_cp_2 = DiceMetric(include_background=True, reduction="mean")
 dice_bb_0 = DiceMetric(include_background=True, reduction="mean")
 dice_bb_1 = DiceMetric(include_background=True, reduction="mean")
 dice_bb_2 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_0 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_1 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_2 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_05_0 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_05_1 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_05_2 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_1_0 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_1_1 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_1_2 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_2_0 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_2_1 = DiceMetric(include_background=True, reduction="mean")
+dice_bbs_2_2 = DiceMetric(include_background=True, reduction="mean")
 
 #TODO ARRUMAR ERODE E ARRUMAR VARIAÇÃO BOUNDING BOX
 #loop with tqdm
@@ -103,30 +109,38 @@ for idx, batch in enumerate(tqdm(loader)):
     image = cv2.imread(image_loc, cv2.IMREAD_COLOR)
     mask = cv2.imread(mask_loc, cv2.IMREAD_GRAYSCALE)
     
+    # #turn all masks to 1
+    # mask[mask>0] = 1
+    
     #FILL HOLES on mask
     if args.dataset == 'ISIC':
         contour,hier = cv2.findContours(mask,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contour:
             cv2.drawContours(mask,[cnt],0,255,-1)
-    
+            
+    #split mask
     masks_split = utils.split_mask(mask, args.dataset)
     
     if args.dataset == "CXRkaggle" and len(masks_split) !=2:
         print(f"only 1 lung mask found in image: {image_loc}")
         
     #create lists and set image
-    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs = [], [], [], [], [], []
-    
+    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2 = [], [], [], [], [], [], [], []
+    erode=30
+    if args.dataset == "mamo_US":
+        erode=10
     predictor.set_image(image)
     
     for mask_s in masks_split:
         #get points and boxes
         try:
-            input_rc, input_label_rc = utils.random_coordinate(mask_s)
-            input_rs3, input_label_rs3 = utils.random_splits(mask_s, n_splits=3)
-            input_rs5, input_label_rs5 = utils.random_splits(mask_s, n_splits=5)
+            input_rc, input_label_rc = utils.random_coordinate(mask_s, erode)
+            input_rs3, input_label_rs3 = utils.random_splits(mask_s, n_splits=3, erode=erode)
+            input_rs5, input_label_rs5 = utils.random_splits(mask_s, n_splits=5, erode=erode)
             input_cp, input_label_cp = utils.central_point(mask_s)
-            input_bb, input_bb_similar = utils.boundbox_similar(mask_s, mask_s.shape)
+            input_bb, input_bbs_05 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.05)
+            _, input_bbs_1 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.1)
+            _, input_bbs_2 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.2)
      
             #predict masks from points and boxes
             masks_rc_temp, scores_rc, logits_rc = predictor.predict(point_coords=input_rc, point_labels=input_label_rc,multimask_output=True)
@@ -134,7 +148,9 @@ for idx, batch in enumerate(tqdm(loader)):
             masks_rs5_temp, scores_rs5, logits_rs5 = predictor.predict(point_coords=input_rs5, point_labels=input_label_rs5,multimask_output=True)
             masks_cp_temp, scores_cp, logits_cp = predictor.predict(point_coords=input_cp, point_labels=input_label_cp,multimask_output=True)
             masks_bb_temp, scores_bb, logits_bb = predictor.predict(point_coords=None, point_labels=None, box=input_bb, multimask_output=True)
-            masks_bbs_temp, scores_bbs, logits_bbs = predictor.predict(point_coords=None, point_labels=None, box=input_bb_similar, multimask_output=True)
+            masks_bbs_05_temp, scores_bbs_05, logits_bbs_05 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_05, multimask_output=True)
+            masks_bbs_1_temp, scores_bbs_1, logits_bbs_1 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_1, multimask_output=True)
+            masks_bbs_2_temp, scores_bbs_2, logits_bbs_2 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_2, multimask_output=True)
             
             #append masks
             masks_rc.append(masks_rc_temp)
@@ -142,7 +158,9 @@ for idx, batch in enumerate(tqdm(loader)):
             masks_rs5.append(masks_rs5_temp)
             masks_cp.append(masks_cp_temp)
             masks_bb.append(masks_bb_temp)
-            masks_bbs.append(masks_bbs_temp)
+            masks_bbs_05.append(masks_bbs_05_temp)
+            masks_bbs_1.append(masks_bbs_1_temp)
+            masks_bbs_2.append(masks_bbs_2_temp)
             
         except:
             #TODO SAVE COMPRESSED VERSION OF IMAGE
@@ -155,11 +173,14 @@ for idx, batch in enumerate(tqdm(loader)):
             board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_rs5', np.expand_dims(masks_rs5*1, axis=-1), 0, dataformats='HW')
             board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_cp', np.expand_dims(masks_cp*1, axis=-1), 0, dataformats='HW')
             board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bb', np.expand_dims(masks_bb*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs', np.expand_dims(masks_bbs*1, axis=-1), 0, dataformats='HW')
+            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_05', np.expand_dims(masks_bbs_05*1, axis=-1), 0, dataformats='HW')
+            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_1', np.expand_dims(masks_bbs_1*1, axis=-1), 0, dataformats='HW')
+            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_2', np.expand_dims(masks_bbs_2*1, axis=-1), 0, dataformats='HW')
+            
             continue
     #lista (5 elementos) de listas (2 elementos) de listas de 3 predições de máscara
-    mask_list = [masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs]
-    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs = utils.merge_masks(mask_list)
+    mask_list = [masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2]
+    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2 = utils.merge_masks(mask_list)
     
     if idx in random_values:
         #save images
@@ -174,7 +195,9 @@ for idx, batch in enumerate(tqdm(loader)):
         board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_rs5', np.expand_dims(masks_rs5*1, axis=-1), 0, dataformats='NHWC')
         board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_cp', np.expand_dims(masks_cp*1, axis=-1), 0, dataformats='NHWC')
         board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_bb', np.expand_dims(masks_bb*1, axis=-1), 0, dataformats='NHWC')
-        board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_bbs', np.expand_dims(masks_bbs*1, axis=-1), 0, dataformats='NHWC')
+        board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_bbs_05', np.expand_dims(masks_bbs_05*1, axis=-1), 0, dataformats='NHWC')
+        board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_bbs_1', np.expand_dims(masks_bbs_1*1, axis=-1), 0, dataformats='NHWC')
+        board.add_images(f'images_{mask_loc.split("/")[-1]}/mask_bbs_2', np.expand_dims(masks_bbs_2*1, axis=-1), 0, dataformats='NHWC')
     
     mask = (mask>0)*1
 
@@ -193,9 +216,15 @@ for idx, batch in enumerate(tqdm(loader)):
     dice_bb_0(y_pred=torch.Tensor(masks_bb[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     dice_bb_1(y_pred=torch.Tensor((masks_bb[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     dice_bb_2(y_pred=torch.Tensor((masks_bb[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
-    dice_bbs_0(y_pred=torch.Tensor(masks_bbs[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
-    dice_bbs_1(y_pred=torch.Tensor((masks_bbs[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
-    dice_bbs_2(y_pred=torch.Tensor((masks_bbs[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_05_0(y_pred=torch.Tensor(masks_bbs_05[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_05_1(y_pred=torch.Tensor((masks_bbs_05[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_05_2(y_pred=torch.Tensor((masks_bbs_05[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_1_0(y_pred=torch.Tensor(masks_bbs_1[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_1_1(y_pred=torch.Tensor((masks_bbs_1[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_1_2(y_pred=torch.Tensor((masks_bbs_1[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_2_0(y_pred=torch.Tensor(masks_bbs_2[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_2_1(y_pred=torch.Tensor((masks_bbs_2[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    dice_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     
 dice_rc_0 = dice_rc_0.aggregate()
 dice_rc_1 = dice_rc_1.aggregate()
@@ -212,9 +241,15 @@ dice_cp_2 = dice_cp_2.aggregate()
 dice_bb_0 = dice_bb_0.aggregate()
 dice_bb_1 = dice_bb_1.aggregate()
 dice_bb_2 = dice_bb_2.aggregate()
-dice_bbs_0 = dice_bbs_0.aggregate()
-dice_bbs_1 = dice_bbs_1.aggregate()
-dice_bbs_2 = dice_bbs_2.aggregate()
+dice_bbs_05_0 = dice_bbs_05_0.aggregate()
+dice_bbs_05_1 = dice_bbs_05_1.aggregate()
+dice_bbs_05_2 = dice_bbs_05_2.aggregate()
+dice_bbs_1_0 = dice_bbs_1_0.aggregate()
+dice_bbs_1_1 = dice_bbs_1_1.aggregate()
+dice_bbs_1_2 = dice_bbs_1_2.aggregate()
+dice_bbs_2_0 = dice_bbs_2_0.aggregate()
+dice_bbs_2_1 = dice_bbs_2_1.aggregate()
+dice_bbs_2_2 = dice_bbs_2_2.aggregate()
 
 board.add_scalar('Dice/Random Coord 0', dice_rc_0.mean().item(), 0)
 board.add_scalar('Dice/Random Coord 1', dice_rc_1.mean().item(), 1)
@@ -231,9 +266,15 @@ board.add_scalar('Dice/Central Point 2', dice_cp_2.mean().item(), 2)
 board.add_scalar('Dice/Bounding Box 0', dice_bb_0.mean().item(), 0)
 board.add_scalar('Dice/Bounding Box 1', dice_bb_1.mean().item(), 1)
 board.add_scalar('Dice/Bounding Box 2', dice_bb_2.mean().item(), 2)
-board.add_scalar('Dice/Bounding Box Similar 0', dice_bbs_0.mean().item(), 0)
-board.add_scalar('Dice/Bounding Box Similar 1', dice_bbs_1.mean().item(), 1)
-board.add_scalar('Dice/Bounding Box Similar 2', dice_bbs_2.mean().item(), 2)
+board.add_scalar('Dice/Bounding Box Similar 0.05 0', dice_bbs_05_0.mean().item(), 0)
+board.add_scalar('Dice/Bounding Box Similar 0.05 1', dice_bbs_05_1.mean().item(), 1)
+board.add_scalar('Dice/Bounding Box Similar 0.05 2', dice_bbs_05_2.mean().item(), 2)
+board.add_scalar('Dice/Bounding Box Similar 0.1 0', dice_bbs_1_0.mean().item(), 0)
+board.add_scalar('Dice/Bounding Box Similar 0.1 1', dice_bbs_1_1.mean().item(), 1)
+board.add_scalar('Dice/Bounding Box Similar 0.1 2', dice_bbs_1_2.mean().item(), 2)
+board.add_scalar('Dice/Bounding Box Similar 0.2 0', dice_bbs_2_0.mean().item(), 0)
+board.add_scalar('Dice/Bounding Box Similar 0.2 1', dice_bbs_2_1.mean().item(), 1)
+board.add_scalar('Dice/Bounding Box Similar 0.2 2', dice_bbs_2_2.mean().item(), 2)
 
 board.add_scalar('Dice_simple/Random Coord', dice_rc_0.mean().item(), 0)
 board.add_scalar('Dice_simple/Random Coord', dice_rc_1.mean().item(), 1)
@@ -250,10 +291,15 @@ board.add_scalar('Dice_simple/Central Point', dice_cp_2.mean().item(), 2)
 board.add_scalar('Dice_simple/Bounding Box', dice_bb_0.mean().item(), 0)
 board.add_scalar('Dice_simple/Bounding Box', dice_bb_1.mean().item(), 1)
 board.add_scalar('Dice_simple/Bounding Box', dice_bb_2.mean().item(), 2)
-board.add_scalar('Dice_simple/Bounding Box Similar', dice_bbs_0.mean().item(), 0)
-board.add_scalar('Dice_simple/Bounding Box Similar', dice_bbs_1.mean().item(), 1)
-board.add_scalar('Dice_simple/Bounding Box Similar', dice_bbs_2.mean().item(), 2)
-
+board.add_scalar('Dice_simple/Bounding Box Similar 0.05', dice_bbs_05_0.mean().item(), 0)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.05', dice_bbs_05_1.mean().item(), 1)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.05', dice_bbs_05_2.mean().item(), 2)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.1', dice_bbs_1_0.mean().item(), 0)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.1', dice_bbs_1_1.mean().item(), 1)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.1', dice_bbs_1_2.mean().item(), 2)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_0.mean().item(), 0)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_1.mean().item(), 1)
+board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_2.mean().item(), 2)
 
 print('dice_rc_0', dice_rc_0.mean().item())
 print('dice_rc_1', dice_rc_1.mean().item())
@@ -270,9 +316,15 @@ print('dice_cp_2', dice_cp_2.mean().item())
 print('dice_bb_0', dice_bb_0.mean().item())
 print('dice_bb_1', dice_bb_1.mean().item())
 print('dice_bb_2', dice_bb_2.mean().item())
-print('dice_bbs_0', dice_bbs_0.mean().item())
-print('dice_bbs_1', dice_bbs_1.mean().item())
-print('dice_bbs_2', dice_bbs_2.mean().item())
+print('dice_bbs_05_0', dice_bbs_05_0.mean().item())
+print('dice_bbs_05_1', dice_bbs_05_1.mean().item())
+print('dice_bbs_05_2', dice_bbs_05_2.mean().item())
+print('dice_bbs_1_0', dice_bbs_1_0.mean().item())
+print('dice_bbs_1_1', dice_bbs_1_1.mean().item())
+print('dice_bbs_1_2', dice_bbs_1_2.mean().item())
+print('dice_bbs_2_0', dice_bbs_2_0.mean().item())
+print('dice_bbs_2_1', dice_bbs_2_1.mean().item())
+print('dice_bbs_2_2', dice_bbs_2_2.mean().item())
 
 print('finished')
 

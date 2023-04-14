@@ -1,4 +1,6 @@
 cufile.log
-runs/
+runs
 cufile
 pycache
+runs_old
+__pycache__

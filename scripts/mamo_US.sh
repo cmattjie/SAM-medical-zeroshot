@@ -2,21 +2,21 @@ export CUDA_DEVICE_ORDER=PCI_BUS_ID
 
 python3 main_2d.py \
 --model vit-h \
---gpu 0 \
---dataset CXRkaggle \
---name CXRkaggle_vit-h \
+--gpu 3 \
+--dataset mamo_US \
+--name mamo_US_vit-h \
 --variation 30 
 
 python3 main_2d.py \
 --model vit-b \
---gpu 0 \
---dataset CXRkaggle \
---name CXRkaggle_vit-b \
+--gpu 3 \
+--dataset mamo_US \
+--name mamo_US_vit-b \
 --variation 30 
 
 python3 main_2d.py \
 --model vit-l \
---gpu 0 \
---dataset CXRkaggle \
---name CXRkaggle_vit-l \
+--gpu 3 \
+--dataset mamo_US \
+--name mamo_US_vit-l \
 --variation 30 

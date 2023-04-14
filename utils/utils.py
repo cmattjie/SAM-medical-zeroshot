@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 from scipy import ndimage
 
-def random_splits(mask, n_splits=3):
-    mask = cv2.erode(mask, np.ones((30,30), np.uint8), iterations=1)
+def random_splits(mask, n_splits=3, erode=30):
+    mask = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
     # Find the indices of the rows where there are non-zero values
     non_zero_rows = np.where(np.any(mask, axis=1))[0]
 
@@ -56,8 +56,8 @@ def central_point(mask):
     input_label = np.array([1])
     return input_point, input_label
 
-def random_coordinate(mask):
-    mask = cv2.erode(mask, np.ones((30,30), np.uint8), iterations=1)
+def random_coordinate(mask, erode=30):
+    mask = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
     mask = np.where(mask > 0, 1, 0).astype(np.uint8)
 
     # Obtém as coordenadas de todos os pixels com o valor desejado
@@ -69,8 +69,8 @@ def random_coordinate(mask):
     return input_point, np.array([1])
 
 def merge_masks(mask_list):
-    masks_rc_list, masks_rs3_list, masks_rs5_list, masks_cp_list, masks_bb_list, masks_bbs_list = mask_list
-    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs = [], [], [], [], [], []
+    masks_rc_list, masks_rs3_list, masks_rs5_list, masks_cp_list, masks_bb_list, masks_bbs_05_list, masks_bbs_1_list, masks_bbs_2_list = mask_list
+    masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2 = [], [], [], [], [], [], [], []
     if len(masks_rc_list) > 1:
         for i in range(len(masks_rc_list[0])): #i=3
             masks_rc.append(np.logical_or(masks_rc_list[0][i], masks_rc_list[1][i]))
@@ -78,14 +78,18 @@ def merge_masks(mask_list):
             masks_rs5.append(np.logical_or(masks_rs5_list[0][i], masks_rs5_list[1][i]))
             masks_cp.append(np.logical_or(masks_cp_list[0][i], masks_cp_list[1][i]))
             masks_bb.append(np.logical_or(masks_bb_list[0][i], masks_bb_list[1][i]))
-            masks_bbs.append(np.logical_or(masks_bbs_list[0][i], masks_bbs_list[1][i]))
+            masks_bbs_05.append(np.logical_or(masks_bbs_05_list[0][i], masks_bbs_05_list[1][i]))
+            masks_bbs_1.append(np.logical_or(masks_bbs_1_list[0][i], masks_bbs_1_list[1][i]))
+            masks_bbs_2.append(np.logical_or(masks_bbs_2_list[0][i], masks_bbs_2_list[1][i]))
             
         masks_rc=np.stack(masks_rc, axis=0)
         masks_rs3=np.stack(masks_rs3, axis=0)
         masks_rs5=np.stack(masks_rs5, axis=0)
         masks_cp=np.stack(masks_cp, axis=0)
         masks_bb=np.stack(masks_bb, axis=0)
-        masks_bbs=np.stack(masks_bbs, axis=0)
+        masks_bbs_05=np.stack(masks_bbs_05, axis=0)
+        masks_bbs_1=np.stack(masks_bbs_1, axis=0)
+        masks_bbs_2=np.stack(masks_bbs_2, axis=0)
 
     else:
         masks_rc = masks_rc_list[0]
@@ -93,9 +97,11 @@ def merge_masks(mask_list):
         masks_rs5 = masks_rs5_list[0]
         masks_cp = masks_cp_list[0]
         masks_bb = masks_bb_list[0]
-        masks_bbs = masks_bbs_list[0]
+        masks_bbs_05 = masks_bbs_05_list[0]
+        masks_bbs_1 = masks_bbs_1_list[0]
+        masks_bbs_2 = masks_bbs_2_list[0]
         
-    return masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs
+    return masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2
 
 def boundbox(mask):
     # Find contours in the mask
@@ -108,7 +114,7 @@ def boundbox(mask):
 
 def split_mask(mask, dataset):
     mask = np.array(mask)
-    if dataset=='ISIC':
+    if dataset != 'CXRkaggle':
         return [cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]]
     labels, nlabels = ndimage.measurements.label(mask)
     if nlabels < 2:
@@ -124,35 +130,37 @@ def split_mask(mask, dataset):
         masks.append(temp_mask)
     return masks
 
-def boundbox_similar(mask, img_shape, pos_variation=10, size_variation=10, size_mode="random"):    
-    
+def boundbox_similar(mask, img_shape, max_var_percentage=0.1, size_mode="random"):    
     # Find contours in the mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     # Get the bounding box of the first contour
     x, y, w, h = cv2.boundingRect(contours[0])
+    #print(x, y, w, h)
     
     # Create the bounding box coordinates
     bbox = [x, y, x+w, y+h]
-    
-    # Define the maximum and minimum possible variations for position
-    max_pos_variation = min(pos_variation, x, y, img_shape[1] - (x+w), img_shape[0] - (y+h))
+    max_var_x = (bbox[2] - bbox[0])*max_var_percentage
+    max_var_y = (bbox[3] - bbox[1])*max_var_percentage
     
     # Add random variation to the position of the bounding box's upper left corner
-    new_x = np.clip(x + np.random.randint(-max_pos_variation, max_pos_variation+1), 0, img_shape[1]-w)
-    new_y = np.clip(y + np.random.randint(-max_pos_variation, max_pos_variation+1), 0, img_shape[0]-h)
+    new_x = np.clip(x + np.random.randint(-max_var_x, max_var_x+1), 0, img_shape[1]-w)
+    new_y = np.clip(y + np.random.randint(-max_var_y, max_var_y+1), 0, img_shape[0]-h)
     
     # Calculate the size variation based on the size_mode parameter
     if size_mode == "bigger":
-        size_var = np.random.randint(0, size_variation+1)
+        size_var_x = np.random.randint(0, max_var_x+1)
+        size_var_y = np.random.randint(0, max_var_y+1)
     elif size_mode == "smaller":
-        size_var = np.random.randint(-size_variation, 1)
+        size_var_x = np.random.randint(-max_var_x, 1)
+        size_var_y = np.random.randint(-max_var_y, 1)
     else:  # Default to "random" if an unsupported mode is provided
-        size_var = np.random.randint(-size_variation, size_variation+1)
+        size_var_x = np.random.randint(-max_var_x, max_var_x+1)
+        size_var_y = np.random.randint(-max_var_y, max_var_y+1)
     
     # Calculate the new width and height with the size variation
-    new_w = np.clip(w + size_var, 1, img_shape[1] - new_x)
-    new_h = np.clip(h + size_var, 1, img_shape[0] - new_y)
+    new_w = np.clip(w + size_var_x, 1, img_shape[1] - new_x)
+    new_h = np.clip(h + size_var_y, 1, img_shape[0] - new_y)
     
     # Create the similar_bbox coordinates
     similar_bbox = [new_x, new_y, new_x + new_w, new_y + new_h]

@@ -1,7 +1,22 @@
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 
 python3 main_2d.py \
---model default \
---gpu 2 \
+--model vit-h \
+--gpu 1 \
 --dataset ISIC \
---name ISIC
+--name ISIC_vit-h \
+--variation 30 
+
+python3 main_2d.py \
+--model vit-b \
+--gpu 1 \
+--dataset ISIC \
+--name ISIC_vit-b \
+--variation 30 
+
+python3 main_2d.py \
+--model vit-l \
+--gpu 1 \
+--dataset ISIC \
+--name ISIC_vit-l \
+--variation 30 
