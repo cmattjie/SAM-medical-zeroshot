@@ -4,6 +4,7 @@ import cv2
 import torch
 from tqdm import tqdm
 import argparse
+import csv
 
 import matplotlib.pyplot as plt 
 import numpy as np
@@ -11,7 +12,7 @@ import numpy as np
 from segment_anything import sam_model_registry, SamPredictor
 from monai.transforms import LoadImaged, ScaleIntensityRanged, Compose, Identity
 from monai.data import DataLoader, Dataset, ThreadDataLoader
-from monai.metrics import DiceMetric
+from monai.metrics import DiceMetric, MeanIoU
 from utils import utils
 import warnings
 import json
@@ -53,7 +54,7 @@ data_dicts = [{"image": image_name, "label": label_name} for image_name, label_n
 train_files = data_dicts
 
 check_ds = Dataset(data=train_files)# transform=train_transforms)
-loader = DataLoader(check_ds, batch_size=1, shuffle=True)#, num_workers=4, shuffle=False)
+loader = DataLoader(check_ds, batch_size=1, shuffle=False)#, num_workers=4, shuffle=False)
 
 sam_checkpoint = dicts['sam_checkpoint'][args.model]
 device = torch.device(f'cuda:{args.gpu}')
@@ -91,6 +92,31 @@ dice_bbs_2_0 = DiceMetric(include_background=True, reduction="mean")
 dice_bbs_2_1 = DiceMetric(include_background=True, reduction="mean")
 dice_bbs_2_2 = DiceMetric(include_background=True, reduction="mean")
 
+# iou_rc_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rc_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rc_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs3_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs3_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs3_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs5_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs5_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_rs5_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_cp_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_cp_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_cp_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bb_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bb_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bb_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_05_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_05_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_05_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_1_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_1_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_1_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_2_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_2_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_2_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+
 #TODO ARRUMAR ERODE E ARRUMAR VARIAÇÃO BOUNDING BOX
 #loop with tqdm
 n_images = len(loader)
@@ -98,6 +124,15 @@ n_images = len(loader)
 #get 10 random values from n_images
 random_values = [1,2,3,4,5]#np.random.randint(0, n_images, 10)
 #print(f"Random values: {random_values}")
+
+#erode
+erode=30
+if args.dataset in ["mamo_US", "HAM"]:
+    erode=10
+if args.dataset in ['CVC']:
+    erode=0
+    
+print('erode: ', erode)
 
 for idx, batch in enumerate(tqdm(loader)):
     # if idx < 3680:
@@ -126,9 +161,7 @@ for idx, batch in enumerate(tqdm(loader)):
         
     #create lists and set image
     masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2 = [], [], [], [], [], [], [], []
-    erode=30
-    if args.dataset == "mamo_US":
-        erode=10
+    
     predictor.set_image(image)
     
     for mask_s in masks_split:
@@ -226,6 +259,31 @@ for idx, batch in enumerate(tqdm(loader)):
     dice_bbs_2_1(y_pred=torch.Tensor((masks_bbs_2[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     dice_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     
+    # iou_rc_0(y_pred=torch.Tensor(masks_rc[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rc_1(y_pred=torch.Tensor((masks_rc[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rc_2(y_pred=torch.Tensor((masks_rc[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs3_0(y_pred=torch.Tensor(masks_rs3[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs3_1(y_pred=torch.Tensor((masks_rs3[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs3_2(y_pred=torch.Tensor((masks_rs3[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs5_0(y_pred=torch.Tensor(masks_rs5[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs5_1(y_pred=torch.Tensor((masks_rs5[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_rs5_2(y_pred=torch.Tensor((masks_rs5[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_cp_0(y_pred=torch.Tensor(masks_cp[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_cp_1(y_pred=torch.Tensor((masks_cp[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_cp_2(y_pred=torch.Tensor((masks_cp[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bb_0(y_pred=torch.Tensor(masks_bb[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bb_1(y_pred=torch.Tensor((masks_bb[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bb_2(y_pred=torch.Tensor((masks_bb[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_05_0(y_pred=torch.Tensor(masks_bbs_05[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_05_1(y_pred=torch.Tensor((masks_bbs_05[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_05_2(y_pred=torch.Tensor((masks_bbs_05[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_1_0(y_pred=torch.Tensor(masks_bbs_1[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_1_1(y_pred=torch.Tensor((masks_bbs_1[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_1_2(y_pred=torch.Tensor((masks_bbs_1[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_2_0(y_pred=torch.Tensor(masks_bbs_2[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_2_1(y_pred=torch.Tensor((masks_bbs_2[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
+    # iou_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0)) 
+    
 dice_rc_0 = dice_rc_0.aggregate()
 dice_rc_1 = dice_rc_1.aggregate()
 dice_rc_2 = dice_rc_2.aggregate()
@@ -250,6 +308,31 @@ dice_bbs_1_2 = dice_bbs_1_2.aggregate()
 dice_bbs_2_0 = dice_bbs_2_0.aggregate()
 dice_bbs_2_1 = dice_bbs_2_1.aggregate()
 dice_bbs_2_2 = dice_bbs_2_2.aggregate()
+
+# iou_rc_0 = iou_rc_0.aggregate()
+# iou_rc_1 = iou_rc_1.aggregate()
+# iou_rc_2 = iou_rc_2.aggregate()
+# iou_rs3_0 = iou_rs3_0.aggregate()
+# iou_rs3_1 = iou_rs3_1.aggregate()
+# iou_rs3_2 = iou_rs3_2.aggregate()
+# iou_rs5_0 = iou_rs5_0.aggregate()
+# iou_rs5_1 = iou_rs5_1.aggregate()
+# iou_rs5_2 = iou_rs5_2.aggregate()
+# iou_cp_0 = iou_cp_0.aggregate()
+# iou_cp_1 = iou_cp_1.aggregate()
+# iou_cp_2 = iou_cp_2.aggregate()
+# iou_bb_0 = iou_bb_0.aggregate()
+# iou_bb_1 = iou_bb_1.aggregate()
+# iou_bb_2 = iou_bb_2.aggregate()
+# iou_bbs_05_0 = iou_bbs_05_0.aggregate()
+# iou_bbs_05_1 = iou_bbs_05_1.aggregate()
+# iou_bbs_05_2 = iou_bbs_05_2.aggregate()
+# iou_bbs_1_0 = iou_bbs_1_0.aggregate()
+# iou_bbs_1_1 = iou_bbs_1_1.aggregate()
+# iou_bbs_1_2 = iou_bbs_1_2.aggregate()
+# iou_bbs_2_0 = iou_bbs_2_0.aggregate()
+# iou_bbs_2_1 = iou_bbs_2_1.aggregate()
+# iou_bbs_2_2 = iou_bbs_2_2.aggregate()
 
 board.add_scalar('Dice/Random Coord 0', dice_rc_0.mean().item(), 0)
 board.add_scalar('Dice/Random Coord 1', dice_rc_1.mean().item(), 1)
@@ -276,6 +359,31 @@ board.add_scalar('Dice/Bounding Box Similar 0.2 0', dice_bbs_2_0.mean().item(), 
 board.add_scalar('Dice/Bounding Box Similar 0.2 1', dice_bbs_2_1.mean().item(), 1)
 board.add_scalar('Dice/Bounding Box Similar 0.2 2', dice_bbs_2_2.mean().item(), 2)
 
+# board.add_scalar('iou/Random Coord 0', iou_rc_0.mean().item(), 0)
+# board.add_scalar('iou/Random Coord 1', iou_rc_1.mean().item(), 1)
+# board.add_scalar('iou/Random Coord 2', iou_rc_2.mean().item(), 2) 
+# board.add_scalar('iou/3 Random Splits 0', iou_rs3_0.mean().item(), 0)
+# board.add_scalar('iou/3 Random Splits 1', iou_rs3_1.mean().item(), 1)
+# board.add_scalar('iou/3 Random Splits 2', iou_rs3_2.mean().item(), 2)
+# board.add_scalar('iou/5 Random Splits 0', iou_rs5_0.mean().item(), 0)
+# board.add_scalar('iou/5 Random Splits 1', iou_rs5_1.mean().item(), 1)
+# board.add_scalar('iou/5 Random Splits 2', iou_rs5_2.mean().item(), 2)
+# board.add_scalar('iou/Central Point 0', iou_cp_0.mean().item(), 0)
+# board.add_scalar('iou/Central Point 1', iou_cp_1.mean().item(), 1)
+# board.add_scalar('iou/Central Point 2', iou_cp_2.mean().item(), 2)
+# board.add_scalar('iou/Bounding Box 0', iou_bb_0.mean().item(), 0)
+# board.add_scalar('iou/Bounding Box 1', iou_bb_1.mean().item(), 1)
+# board.add_scalar('iou/Bounding Box 2', iou_bb_2.mean().item(), 2)
+# board.add_scalar('iou/Bounding Box Similar 0.05 0', iou_bbs_05_0.mean().item(), 0)
+# board.add_scalar('iou/Bounding Box Similar 0.05 1', iou_bbs_05_1.mean().item(), 1)
+# board.add_scalar('iou/Bounding Box Similar 0.05 2', iou_bbs_05_2.mean().item(), 2)
+# board.add_scalar('iou/Bounding Box Similar 0.1 0', iou_bbs_1_0.mean().item(), 0)
+# board.add_scalar('iou/Bounding Box Similar 0.1 1', iou_bbs_1_1.mean().item(), 1)
+# board.add_scalar('iou/Bounding Box Similar 0.1 2', iou_bbs_1_2.mean().item(), 2)
+# board.add_scalar('iou/Bounding Box Similar 0.2 0', iou_bbs_2_0.mean().item(), 0)
+# board.add_scalar('iou/Bounding Box Similar 0.2 1', iou_bbs_2_1.mean().item(), 1)
+# board.add_scalar('iou/Bounding Box Similar 0.2 2', iou_bbs_2_2.mean().item(), 2)
+
 board.add_scalar('Dice_simple/Random Coord', dice_rc_0.mean().item(), 0)
 board.add_scalar('Dice_simple/Random Coord', dice_rc_1.mean().item(), 1)
 board.add_scalar('Dice_simple/Random Coord', dice_rc_2.mean().item(), 2)
@@ -300,6 +408,31 @@ board.add_scalar('Dice_simple/Bounding Box Similar 0.1', dice_bbs_1_2.mean().ite
 board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_0.mean().item(), 0)
 board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_1.mean().item(), 1)
 board.add_scalar('Dice_simple/Bounding Box Similar 0.2', dice_bbs_2_2.mean().item(), 2)
+
+# board.add_scalar('iou_simple/Random Coord', iou_rc_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Random Coord', iou_rc_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Random Coord', iou_rc_2.mean().item(), 2)
+# board.add_scalar('iou_simple/3 Random Splits', iou_rs3_0.mean().item(), 0)
+# board.add_scalar('iou_simple/3 Random Splits', iou_rs3_1.mean().item(), 1)
+# board.add_scalar('iou_simple/3 Random Splits', iou_rs3_2.mean().item(), 2)
+# board.add_scalar('iou_simple/5 Random Splits', iou_rs5_0.mean().item(), 0)
+# board.add_scalar('iou_simple/5 Random Splits', iou_rs5_1.mean().item(), 1)
+# board.add_scalar('iou_simple/5 Random Splits', iou_rs5_2.mean().item(), 2)
+# board.add_scalar('iou_simple/Central Point', iou_cp_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Central Point', iou_cp_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Central Point', iou_cp_2.mean().item(), 2)
+# board.add_scalar('iou_simple/Bounding Box', iou_bb_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Bounding Box', iou_bb_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Bounding Box', iou_bb_2.mean().item(), 2)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.05', iou_bbs_05_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.05', iou_bbs_05_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.05', iou_bbs_05_2.mean().item(), 2)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.1', iou_bbs_1_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.1', iou_bbs_1_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.1', iou_bbs_1_2.mean().item(), 2)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.2', iou_bbs_2_0.mean().item(), 0)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.2', iou_bbs_2_1.mean().item(), 1)
+# board.add_scalar('iou_simple/Bounding Box Similar 0.2', iou_bbs_2_2.mean().item(), 2)
 
 print('dice_rc_0', dice_rc_0.mean().item())
 print('dice_rc_1', dice_rc_1.mean().item())
@@ -326,6 +459,17 @@ print('dice_bbs_2_0', dice_bbs_2_0.mean().item())
 print('dice_bbs_2_1', dice_bbs_2_1.mean().item())
 print('dice_bbs_2_2', dice_bbs_2_2.mean().item())
 
-print('finished')
+#add to csv
+with open(f'{args.dataset}_{args.model}.csv', 'a') as f:
+    writer = csv.writer(f)
+    #create header
+    if os.stat(f'{args.dataset}_{args.model}.csv').st_size == 0:
+        writer.writerow(['dice_rc_0', 'dice_rc_1', 'dice_rc_2', 'dice_rs3_0', 'dice_rs3_1', 'dice_rs3_2', 'dice_rs5_0', 'dice_rs5_1', 'dice_rs5_2', 'dice_cp_0', 'dice_cp_1', 'dice_cp_2', 'dice_bb_0', 'dice_bb_1', 'dice_bb_2', 'dice_bbs_05_0', 'dice_bbs_05_1', 'dice_bbs_05_2', 'dice_bbs_1_0', 'dice_bbs_1_1', 'dice_bbs_1_2', 'dice_bbs_2_0', 'dice_bbs_2_1', 'dice_bbs_2_2',
+                        #  'iou_rc_0', 'iou_rc_1', 'iou_rc_2', 'iou_rs3_0', 'iou_rs3_1', 'iou_rs3_2', 'iou_rs5_0', 'iou_rs5_1', 'iou_rs5_2', 'iou_cp_0', 'iou_cp_1', 'iou_cp_2', 'iou_bb_0', 'iou_bb_1', 'iou_bb_2', 'iou_bbs_05_0', 'iou_bbs_05_1', 'iou_bbs_05_2', 'iou_bbs_1_0', 'iou_bbs_1_1', 'iou_bbs_1_2', 'iou_bbs_2_0', 'iou_bbs_2_1', 'iou_bbs_2_2'
+                        ])
+    writer.writerow([dice_rc_0.mean().item(), dice_rc_1.mean().item(), dice_rc_2.mean().item(), dice_rs3_0.mean().item(), dice_rs3_1.mean().item(), dice_rs3_2.mean().item(), dice_rs5_0.mean().item(), dice_rs5_1.mean().item(), dice_rs5_2.mean().item(), dice_cp_0.mean().item(), dice_cp_1.mean().item(), dice_cp_2.mean().item(), dice_bb_0.mean().item(), dice_bb_1.mean().item(), dice_bb_2.mean().item(), dice_bbs_05_0.mean().item(), dice_bbs_05_1.mean().item(), dice_bbs_05_2.mean().item(), dice_bbs_1_0.mean().item(), dice_bbs_1_1.mean().item(), dice_bbs_1_2.mean().item(), dice_bbs_2_0.mean().item(), dice_bbs_2_1.mean().item(), dice_bbs_2_2.mean().item(),
+                    # iou_rc_0.mean().item(), iou_rc_1.mean().item(), iou_rc_2.mean().item(), iou_rs3_0.mean().item(), iou_rs3_1.mean().item(), iou_rs3_2.mean().item(), iou_rs5_0.mean().item(), iou_rs5_1.mean().item(), iou_rs5_2.mean().item(), iou_cp_0.mean().item(), iou_cp_1.mean().item(), iou_cp_2.mean().item(), iou_bb_0.mean().item(), iou_bb_1.mean().item(), iou_bb_2.mean().item(), iou_bbs_05_0.mean().item(), iou_bbs_05_1.mean().item(), iou_bbs_05_2.mean().item(), iou_bbs_1_0.mean().item(), iou_bbs_1_1.mean().item(), iou_bbs_1_2.mean().item(), iou_bbs_2_0.mean().item(), iou_bbs_2_1.mean().item(), iou_bbs_2_2.mean().item()
+                    ])
 
+print('finished')
 board.close()

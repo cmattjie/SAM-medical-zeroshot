@@ -27,7 +27,9 @@
         "ISIC": "/mnt/B-SSD/maltamed/datasets/2D/ISIC",
         "CXRkaggle": "/mnt/B-SSD/maltamed/datasets/2D/CXR_kaggle",
         "mamo_US": "/mnt/B-SSD/maltamed/datasets/2D/mamo_US",
-        "abdominal_US": "/mnt/B-SSD/maltamed/datasets/2D/abdominal_US"
+        "abdominal_US": "/mnt/B-SSD/maltamed/datasets/2D/abdominal_US",
+        "HAM": "/mnt/B-SSD/maltamed/datasets/2D/HAM10000",
+        "CVC": "/mnt/B-SSD/maltamed/datasets/2D/CVC"
     },
 
     "sam_checkpoint": {

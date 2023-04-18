@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 
 def random_splits(mask, n_splits=3, erode=30):
-    mask = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
+    mask_ = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
+    
+    # only use erode if there are more than 10 pixels left
+    if np.sum((mask_ > 0)*1) > 10:
+        mask=mask_
+        
     # Find the indices of the rows where there are non-zero values
     non_zero_rows = np.where(np.any(mask, axis=1))[0]
 
@@ -57,7 +62,10 @@ def central_point(mask):
     return input_point, input_label
 
 def random_coordinate(mask, erode=30):
-    mask = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
+    mask_ = cv2.erode(mask, np.ones((erode,erode), np.uint8), iterations=1)
+    if np.sum((mask_ > 0)*1) > 10:
+        mask=mask_
+    
     mask = np.where(mask > 0, 1, 0).astype(np.uint8)
 
     # Obtém as coordenadas de todos os pixels com o valor desejado
@@ -81,6 +89,7 @@ def merge_masks(mask_list):
             masks_bbs_05.append(np.logical_or(masks_bbs_05_list[0][i], masks_bbs_05_list[1][i]))
             masks_bbs_1.append(np.logical_or(masks_bbs_1_list[0][i], masks_bbs_1_list[1][i]))
             masks_bbs_2.append(np.logical_or(masks_bbs_2_list[0][i], masks_bbs_2_list[1][i]))
+            
             
         masks_rc=np.stack(masks_rc, axis=0)
         masks_rs3=np.stack(masks_rs3, axis=0)
@@ -114,7 +123,7 @@ def boundbox(mask):
 
 def split_mask(mask, dataset):
     mask = np.array(mask)
-    if dataset != 'CXRkaggle':
+    if dataset not in ['CXRkaggle', 'HAM', 'mamo_US']:
         return [cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]]
     labels, nlabels = ndimage.measurements.label(mask)
     if nlabels < 2:
@@ -125,6 +134,9 @@ def split_mask(mask, dataset):
     largest_indices = np.argsort(region_sizes)[-2:][::-1] + 1
     masks = []
     for i in largest_indices:
+        #if the region has less than 30 pixels, ignore it
+        if region_sizes[i-1] < 500:
+            continue
         temp_mask = (labels == i) * 255
         temp_mask = cv2.cvtColor(temp_mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]
         masks.append(temp_mask)
