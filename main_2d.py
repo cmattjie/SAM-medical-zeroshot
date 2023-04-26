@@ -8,6 +8,7 @@ import csv
 
 import matplotlib.pyplot as plt 
 import numpy as np
+import pandas as pd
 
 from segment_anything import sam_model_registry, SamPredictor
 from monai.transforms import LoadImaged, ScaleIntensityRanged, Compose, Identity
@@ -67,30 +68,30 @@ sam.to(device=device)
 
 predictor = SamPredictor(sam)
 
-dice_rc_0 = DiceMetric(include_background=True, reduction="mean")
-dice_rc_1 = DiceMetric(include_background=True, reduction="mean")
-dice_rc_2 = DiceMetric(include_background=True, reduction="mean")
-dice_rs3_0 = DiceMetric(include_background=True, reduction="mean")
-dice_rs3_1 = DiceMetric(include_background=True, reduction="mean")
-dice_rs3_2 = DiceMetric(include_background=True, reduction="mean")
-dice_rs5_0 = DiceMetric(include_background=True, reduction="mean")
-dice_rs5_1 = DiceMetric(include_background=True, reduction="mean")
-dice_rs5_2 = DiceMetric(include_background=True, reduction="mean")
-dice_cp_0 = DiceMetric(include_background=True, reduction="mean")
-dice_cp_1 = DiceMetric(include_background=True, reduction="mean")
-dice_cp_2 = DiceMetric(include_background=True, reduction="mean")
-dice_bb_0 = DiceMetric(include_background=True, reduction="mean")
-dice_bb_1 = DiceMetric(include_background=True, reduction="mean")
-dice_bb_2 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_05_0 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_05_1 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_05_2 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_1_0 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_1_1 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_1_2 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_2_0 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_2_1 = DiceMetric(include_background=True, reduction="mean")
-dice_bbs_2_2 = DiceMetric(include_background=True, reduction="mean")
+dice_rc_0 = DiceMetric(include_background=True, reduction="none")
+dice_rc_1 = DiceMetric(include_background=True, reduction="none")
+dice_rc_2 = DiceMetric(include_background=True, reduction="none")
+dice_rs3_0 = DiceMetric(include_background=True, reduction="none")
+dice_rs3_1 = DiceMetric(include_background=True, reduction="none")
+dice_rs3_2 = DiceMetric(include_background=True, reduction="none")
+dice_rs5_0 = DiceMetric(include_background=True, reduction="none")
+dice_rs5_1 = DiceMetric(include_background=True, reduction="none")
+dice_rs5_2 = DiceMetric(include_background=True, reduction="none")
+dice_cp_0 = DiceMetric(include_background=True, reduction="none")
+dice_cp_1 = DiceMetric(include_background=True, reduction="none")
+dice_cp_2 = DiceMetric(include_background=True, reduction="none")
+dice_bb_0 = DiceMetric(include_background=True, reduction="none")
+dice_bb_1 = DiceMetric(include_background=True, reduction="none")
+dice_bb_2 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_05_0 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_05_1 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_05_2 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_1_0 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_1_1 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_1_2 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_2_0 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_2_1 = DiceMetric(include_background=True, reduction="none")
+dice_bbs_2_2 = DiceMetric(include_background=True, reduction="none")
 
 # iou_rc_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
 # iou_rc_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
@@ -114,7 +115,7 @@ dice_bbs_2_2 = DiceMetric(include_background=True, reduction="mean")
 # iou_bbs_1_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
 # iou_bbs_1_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
 # iou_bbs_2_0 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
-# iou_bbs_2_1 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
+# iou_bbs_2_1 = MeanIoU(include_background=True, reduction="tmean", get_not_nans=False)
 # iou_bbs_2_2 = MeanIoU(include_background=True, reduction="mean", get_not_nans=False)
 
 #TODO ARRUMAR ERODE E ARRUMAR VARIAÇÃO BOUNDING BOX
@@ -127,21 +128,23 @@ random_values = [1,2,3,4,5]#np.random.randint(0, n_images, 10)
 
 #erode
 erode=30
-if args.dataset in ["mamo_US", "HAM"]:
+if args.dataset in ["mamo_US", "HAM", "hip"]:
     erode=10
 if args.dataset in ['CVC']:
     erode=0
     
 print('erode: ', erode)
+df = pd.DataFrame(columns=['image', 'dice_rc_0', 'dice_rc_1', 'dice_rc_2', 'dice_rs3_0', 'dice_rs3_1', 'dice_rs3_2', 'dice_rs5_0', 'dice_rs5_1', 'dice_rs5_2', 'dice_cp_0', 'dice_cp_1', 'dice_cp_2', 'dice_bb_0', 'dice_bb_1', 'dice_bb_2', 'dice_bbs_05_0', 'dice_bbs_05_1', 'dice_bbs_05_2', 'dice_bbs_1_0', 'dice_bbs_1_1', 'dice_bbs_1_2', 'dice_bbs_2_0', 'dice_bbs_2_1', 'dice_bbs_2_2'])
 
 for idx, batch in enumerate(tqdm(loader)):
-    # if idx < 3680:
+    # if idx < 600:
     #    continue
     
     image_loc, mask_loc = batch["image"][0], batch["label"][0]
 
     #reading images and mask
     image = cv2.imread(image_loc, cv2.IMREAD_COLOR)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     mask = cv2.imread(mask_loc, cv2.IMREAD_GRAYSCALE)
     
     # #turn all masks to 1
@@ -199,18 +202,36 @@ for idx, batch in enumerate(tqdm(loader)):
             #TODO SAVE COMPRESSED VERSION OF IMAGE
             print(f"Error in image {idx}")
             print(mask_loc)
-            board.add_image(f'error_{mask_loc.split("/")[-1]}/original', image, idx, dataformats='HWC')
-            board.add_image(f'error_{mask_loc.split("/")[-1]}/mask', mask, idx, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_rc', np.expand_dims(masks_rc*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_rs3', np.expand_dims(masks_rs3*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_rs5', np.expand_dims(masks_rs5*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_cp', np.expand_dims(masks_cp*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bb', np.expand_dims(masks_bb*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_05', np.expand_dims(masks_bbs_05*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_1', np.expand_dims(masks_bbs_1*1, axis=-1), 0, dataformats='HW')
-            board.add_images(f'error_{mask_loc.split("/")[-1]}/mask_bbs_2', np.expand_dims(masks_bbs_2*1, axis=-1), 0, dataformats='HW')
+            print('number of submasks: ', len(masks_split))            
             
-            continue
+            input_rc, input_label_rc = utils.random_coordinate(mask_s, erode)
+            input_rs3, input_label_rs3 = utils.random_splits(mask_s, n_splits=3, erode=erode)
+            input_rs5, input_label_rs5 = utils.random_splits(mask_s, n_splits=5, erode=erode)
+            input_cp, input_label_cp = utils.central_point(mask_s)
+            input_bb, input_bbs_05 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.05)
+            _, input_bbs_1 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.1)
+            _, input_bbs_2 = utils.boundbox_similar(mask_s, mask_s.shape, max_var_percentage=0.2)
+     
+            #predict masks from points and boxes
+            masks_rc_temp, scores_rc, logits_rc = predictor.predict(point_coords=input_rc, point_labels=input_label_rc,multimask_output=True)
+            masks_rs3_temp, scores_rs3, logits_rs3 = predictor.predict(point_coords=input_rs3, point_labels=input_label_rs3,multimask_output=True)
+            masks_rs5_temp, scores_rs5, logits_rs5 = predictor.predict(point_coords=input_rs5, point_labels=input_label_rs5,multimask_output=True)
+            masks_cp_temp, scores_cp, logits_cp = predictor.predict(point_coords=input_cp, point_labels=input_label_cp,multimask_output=True)
+            masks_bb_temp, scores_bb, logits_bb = predictor.predict(point_coords=None, point_labels=None, box=input_bb, multimask_output=True)
+            masks_bbs_05_temp, scores_bbs_05, logits_bbs_05 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_05, multimask_output=True)
+            masks_bbs_1_temp, scores_bbs_1, logits_bbs_1 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_1, multimask_output=True)
+            masks_bbs_2_temp, scores_bbs_2, logits_bbs_2 = predictor.predict(point_coords=None, point_labels=None, box=input_bbs_2, multimask_output=True)
+            
+            #append masks
+            masks_rc.append(masks_rc_temp)
+            masks_rs3.append(masks_rs3_temp)
+            masks_rs5.append(masks_rs5_temp)
+            masks_cp.append(masks_cp_temp)
+            masks_bb.append(masks_bb_temp)
+            masks_bbs_05.append(masks_bbs_05_temp)
+            masks_bbs_1.append(masks_bbs_1_temp)
+            masks_bbs_2.append(masks_bbs_2_temp)
+            
     #lista (5 elementos) de listas (2 elementos) de listas de 3 predições de máscara
     mask_list = [masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2]
     masks_rc, masks_rs3, masks_rs5, masks_cp, masks_bb, masks_bbs_05, masks_bbs_1, masks_bbs_2 = utils.merge_masks(mask_list)
@@ -259,6 +280,8 @@ for idx, batch in enumerate(tqdm(loader)):
     dice_bbs_2_1(y_pred=torch.Tensor((masks_bbs_2[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     dice_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     
+    
+    
     # iou_rc_0(y_pred=torch.Tensor(masks_rc[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     # iou_rc_1(y_pred=torch.Tensor((masks_rc[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     # iou_rc_2(y_pred=torch.Tensor((masks_rc[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
@@ -283,6 +306,36 @@ for idx, batch in enumerate(tqdm(loader)):
     # iou_bbs_2_0(y_pred=torch.Tensor(masks_bbs_2[0,:,:]*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     # iou_bbs_2_1(y_pred=torch.Tensor((masks_bbs_2[1,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0))
     # iou_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0)) 
+
+#before aggregation, save the dice values to the dataframe 'df'
+print(dice_rc_0.aggregate())
+df['dice_rc_0'] = dice_rc_0.aggregate().tolist()
+df['dice_rc_1'] = dice_rc_1.aggregate().tolist()
+df['dice_rc_2'] = dice_rc_2.aggregate().tolist()
+df['dice_rs3_0'] = dice_rs3_0.aggregate().tolist()
+df['dice_rs3_1'] = dice_rs3_1.aggregate().tolist()
+df['dice_rs3_2'] = dice_rs3_2.aggregate().tolist()
+df['dice_rs5_0'] = dice_rs5_0.aggregate().tolist()
+df['dice_rs5_1'] = dice_rs5_1.aggregate().tolist()
+df['dice_rs5_2'] = dice_rs5_2.aggregate().tolist()
+df['dice_cp_0'] = dice_cp_0.aggregate().tolist()
+df['dice_cp_1'] = dice_cp_1.aggregate().tolist()
+df['dice_cp_2'] = dice_cp_2.aggregate().tolist()
+df['dice_bb_0'] = dice_bb_0.aggregate().tolist()
+df['dice_bb_1'] = dice_bb_1.aggregate().tolist()
+df['dice_bb_2'] = dice_bb_2.aggregate().tolist()
+df['dice_bbs_05_0'] = dice_bbs_05_0.aggregate().tolist()
+df['dice_bbs_05_1'] = dice_bbs_05_1.aggregate().tolist()
+df['dice_bbs_05_2'] = dice_bbs_05_2.aggregate().tolist()
+df['dice_bbs_1_0'] = dice_bbs_1_0.aggregate().tolist()
+df['dice_bbs_1_1'] = dice_bbs_1_1.aggregate().tolist()
+df['dice_bbs_1_2'] = dice_bbs_1_2.aggregate().tolist()
+df['dice_bbs_2_0'] = dice_bbs_2_0.aggregate().tolist()
+df['dice_bbs_2_1'] = dice_bbs_2_1.aggregate().tolist()
+df['dice_bbs_2_2'] = dice_bbs_2_2.aggregate().tolist()
+
+#saving all dices to a csv file
+df.to_csv(f'results_paper/dice_values{args.dataset}_{args.model}.csv')
     
 dice_rc_0 = dice_rc_0.aggregate()
 dice_rc_1 = dice_rc_1.aggregate()
@@ -459,17 +512,17 @@ print('dice_bbs_2_0', dice_bbs_2_0.mean().item())
 print('dice_bbs_2_1', dice_bbs_2_1.mean().item())
 print('dice_bbs_2_2', dice_bbs_2_2.mean().item())
 
-#add to csv
-with open(f'{args.dataset}_{args.model}.csv', 'a') as f:
-    writer = csv.writer(f)
-    #create header
-    if os.stat(f'{args.dataset}_{args.model}.csv').st_size == 0:
-        writer.writerow(['dice_rc_0', 'dice_rc_1', 'dice_rc_2', 'dice_rs3_0', 'dice_rs3_1', 'dice_rs3_2', 'dice_rs5_0', 'dice_rs5_1', 'dice_rs5_2', 'dice_cp_0', 'dice_cp_1', 'dice_cp_2', 'dice_bb_0', 'dice_bb_1', 'dice_bb_2', 'dice_bbs_05_0', 'dice_bbs_05_1', 'dice_bbs_05_2', 'dice_bbs_1_0', 'dice_bbs_1_1', 'dice_bbs_1_2', 'dice_bbs_2_0', 'dice_bbs_2_1', 'dice_bbs_2_2',
-                        #  'iou_rc_0', 'iou_rc_1', 'iou_rc_2', 'iou_rs3_0', 'iou_rs3_1', 'iou_rs3_2', 'iou_rs5_0', 'iou_rs5_1', 'iou_rs5_2', 'iou_cp_0', 'iou_cp_1', 'iou_cp_2', 'iou_bb_0', 'iou_bb_1', 'iou_bb_2', 'iou_bbs_05_0', 'iou_bbs_05_1', 'iou_bbs_05_2', 'iou_bbs_1_0', 'iou_bbs_1_1', 'iou_bbs_1_2', 'iou_bbs_2_0', 'iou_bbs_2_1', 'iou_bbs_2_2'
-                        ])
-    writer.writerow([dice_rc_0.mean().item(), dice_rc_1.mean().item(), dice_rc_2.mean().item(), dice_rs3_0.mean().item(), dice_rs3_1.mean().item(), dice_rs3_2.mean().item(), dice_rs5_0.mean().item(), dice_rs5_1.mean().item(), dice_rs5_2.mean().item(), dice_cp_0.mean().item(), dice_cp_1.mean().item(), dice_cp_2.mean().item(), dice_bb_0.mean().item(), dice_bb_1.mean().item(), dice_bb_2.mean().item(), dice_bbs_05_0.mean().item(), dice_bbs_05_1.mean().item(), dice_bbs_05_2.mean().item(), dice_bbs_1_0.mean().item(), dice_bbs_1_1.mean().item(), dice_bbs_1_2.mean().item(), dice_bbs_2_0.mean().item(), dice_bbs_2_1.mean().item(), dice_bbs_2_2.mean().item(),
-                    # iou_rc_0.mean().item(), iou_rc_1.mean().item(), iou_rc_2.mean().item(), iou_rs3_0.mean().item(), iou_rs3_1.mean().item(), iou_rs3_2.mean().item(), iou_rs5_0.mean().item(), iou_rs5_1.mean().item(), iou_rs5_2.mean().item(), iou_cp_0.mean().item(), iou_cp_1.mean().item(), iou_cp_2.mean().item(), iou_bb_0.mean().item(), iou_bb_1.mean().item(), iou_bb_2.mean().item(), iou_bbs_05_0.mean().item(), iou_bbs_05_1.mean().item(), iou_bbs_05_2.mean().item(), iou_bbs_1_0.mean().item(), iou_bbs_1_1.mean().item(), iou_bbs_1_2.mean().item(), iou_bbs_2_0.mean().item(), iou_bbs_2_1.mean().item(), iou_bbs_2_2.mean().item()
-                    ])
+# #add to csv
+# with open(f'{args.dataset}_{args.model}.csv', 'a') as f:
+#     writer = csv.writer(f)
+#     #create header
+#     if os.stat(f'{args.dataset}_{args.model}.csv').st_size == 0:
+#         writer.writerow(['dice_rc_0', 'dice_rc_1', 'dice_rc_2', 'dice_rs3_0', 'dice_rs3_1', 'dice_rs3_2', 'dice_rs5_0', 'dice_rs5_1', 'dice_rs5_2', 'dice_cp_0', 'dice_cp_1', 'dice_cp_2', 'dice_bb_0', 'dice_bb_1', 'dice_bb_2', 'dice_bbs_05_0', 'dice_bbs_05_1', 'dice_bbs_05_2', 'dice_bbs_1_0', 'dice_bbs_1_1', 'dice_bbs_1_2', 'dice_bbs_2_0', 'dice_bbs_2_1', 'dice_bbs_2_2',
+#                         #  'iou_rc_0', 'iou_rc_1', 'iou_rc_2', 'iou_rs3_0', 'iou_rs3_1', 'iou_rs3_2', 'iou_rs5_0', 'iou_rs5_1', 'iou_rs5_2', 'iou_cp_0', 'iou_cp_1', 'iou_cp_2', 'iou_bb_0', 'iou_bb_1', 'iou_bb_2', 'iou_bbs_05_0', 'iou_bbs_05_1', 'iou_bbs_05_2', 'iou_bbs_1_0', 'iou_bbs_1_1', 'iou_bbs_1_2', 'iou_bbs_2_0', 'iou_bbs_2_1', 'iou_bbs_2_2'
+#                         ])
+#     writer.writerow([dice_rc_0.mean().item(), dice_rc_1.mean().item(), dice_rc_2.mean().item(), dice_rs3_0.mean().item(), dice_rs3_1.mean().item(), dice_rs3_2.mean().item(), dice_rs5_0.mean().item(), dice_rs5_1.mean().item(), dice_rs5_2.mean().item(), dice_cp_0.mean().item(), dice_cp_1.mean().item(), dice_cp_2.mean().item(), dice_bb_0.mean().item(), dice_bb_1.mean().item(), dice_bb_2.mean().item(), dice_bbs_05_0.mean().item(), dice_bbs_05_1.mean().item(), dice_bbs_05_2.mean().item(), dice_bbs_1_0.mean().item(), dice_bbs_1_1.mean().item(), dice_bbs_1_2.mean().item(), dice_bbs_2_0.mean().item(), dice_bbs_2_1.mean().item(), dice_bbs_2_2.mean().item(),
+#                     # iou_rc_0.mean().item(), iou_rc_1.mean().item(), iou_rc_2.mean().item(), iou_rs3_0.mean().item(), iou_rs3_1.mean().item(), iou_rs3_2.mean().item(), iou_rs5_0.mean().item(), iou_rs5_1.mean().item(), iou_rs5_2.mean().item(), iou_cp_0.mean().item(), iou_cp_1.mean().item(), iou_cp_2.mean().item(), iou_bb_0.mean().item(), iou_bb_1.mean().item(), iou_bb_2.mean().item(), iou_bbs_05_0.mean().item(), iou_bbs_05_1.mean().item(), iou_bbs_05_2.mean().item(), iou_bbs_1_0.mean().item(), iou_bbs_1_1.mean().item(), iou_bbs_1_2.mean().item(), iou_bbs_2_0.mean().item(), iou_bbs_2_1.mean().item(), iou_bbs_2_2.mean().item()
+#                     ])
 
 print('finished')
 board.close()

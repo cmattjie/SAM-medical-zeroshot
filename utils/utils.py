@@ -123,7 +123,7 @@ def boundbox(mask):
 
 def split_mask(mask, dataset):
     mask = np.array(mask)
-    if dataset not in ['CXRkaggle', 'HAM', 'mamo_US']:
+    if dataset in ['ISIC']:
         return [cv2.cvtColor(mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]]
     labels, nlabels = ndimage.measurements.label(mask)
     if nlabels < 2:
@@ -135,7 +135,7 @@ def split_mask(mask, dataset):
     masks = []
     for i in largest_indices:
         #if the region has less than 30 pixels, ignore it
-        if region_sizes[i-1] < 500:
+        if region_sizes[i-1] < 200:
             continue
         temp_mask = (labels == i) * 255
         temp_mask = cv2.cvtColor(temp_mask.astype(np.uint8), cv2.COLOR_GRAY2RGB)[:,:,0]
@@ -179,7 +179,7 @@ def boundbox_similar(mask, img_shape, max_var_percentage=0.1, size_mode="random"
     
     return np.array(bbox), np.array(similar_bbox)
 
-def show_points(coords, labels, ax, marker_size=375):
+def show_points(coords, labels, ax, marker_size=700):
     pos_points = coords[labels==1]
     neg_points = coords[labels==0]
     ax.scatter(pos_points[:, 0], pos_points[:, 1], color='green', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
@@ -197,4 +197,4 @@ def show_mask(mask, ax, random_color=False):
 def show_box(box, ax, color='green'):
     x0, y0 = box[0], box[1]
     w, h = box[2] - box[0], box[3] - box[1]
-    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor=color, facecolor=(0,0,0,0), lw=2))
+    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor=color, facecolor=(0,0,0,0), lw=4, label='Bounding Box'))
