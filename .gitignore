@@ -4,3 +4,9 @@ cufile
 pycache
 runs_old
 __pycache__
+runs_paper
+runs_paper_old
+results_paper
+images
+graph
+all_dice

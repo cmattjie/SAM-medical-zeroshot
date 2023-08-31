@@ -28,6 +28,7 @@ def get_args():
     parser.add_argument('--gpu',                default=2, type=str, help='GPU Number.')
     parser.add_argument('--name',               default='test', type=str, help='Run name on Tensorboard and savedirs.')
     parser.add_argument('--variation',          default='default', type=int, help='Variation of bounding box placement.')
+    parser.add_argument('--hip_bone',           default='femur', type=str, help='hip bone to segment: femur or ilios')
     #parser.add_argument('--mask_mode',          default='rnd', type=str, help='Method for sampling points.')
     #parser.add_argument('--n_splits',           default=3, type=int, help='Number of splits to get points of.')
     
@@ -49,7 +50,13 @@ assert args.model in dicts['sam_checkpoint'].keys(), "Model not found"
 
 data_dir = dicts['dataset_processed_path'][args.dataset]
 train_images = sorted(glob.glob(os.path.join(data_dir, "images", "*.*")))
-train_labels = sorted(glob.glob(os.path.join(data_dir, "mask", "*.*")))
+
+hip_bone= args.hip_bone # 'femur' or 'ilios'
+if args.dataset == 'hip':
+    print(f"Segmenting {hip_bone}...")
+    train_labels = sorted(glob.glob(os.path.join(data_dir, hip_bone, "*.*")))
+else:
+    train_labels = sorted(glob.glob(os.path.join(data_dir, "mask", "*.*")))
 
 data_dicts = [{"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)]
 train_files = data_dicts
@@ -308,7 +315,7 @@ for idx, batch in enumerate(tqdm(loader)):
     # iou_bbs_2_2(y_pred=torch.Tensor((masks_bbs_2[2,:,:])*1).unsqueeze(0).unsqueeze(0), y=torch.Tensor(mask).unsqueeze(0).unsqueeze(0)) 
 
 #before aggregation, save the dice values to the dataframe 'df'
-print(dice_rc_0.aggregate())
+#print(dice_rc_0.aggregate())
 df['dice_rc_0'] = dice_rc_0.aggregate().tolist()
 df['dice_rc_1'] = dice_rc_1.aggregate().tolist()
 df['dice_rc_2'] = dice_rc_2.aggregate().tolist()
@@ -335,7 +342,10 @@ df['dice_bbs_2_1'] = dice_bbs_2_1.aggregate().tolist()
 df['dice_bbs_2_2'] = dice_bbs_2_2.aggregate().tolist()
 
 #saving all dices to a csv file
-df.to_csv(f'results_paper/dice_values{args.dataset}_{args.model}.csv')
+if args.dataset == "hip":
+    df.to_csv(f'results_paper/dice_values{args.dataset}{hip_bone}_{args.model}.csv')
+else:
+    df.to_csv(f'results_paper/dice_values{args.dataset}_{args.model}.csv')
     
 dice_rc_0 = dice_rc_0.aggregate()
 dice_rc_1 = dice_rc_1.aggregate()
